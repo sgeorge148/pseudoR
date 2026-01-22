@@ -107,12 +107,51 @@ for (i in seq (nrow(sampleList))) {
       }
     }
 }    
-contig_output = contig_output %>% relocate (sample, IS, contig, insertion_pos, `5prime`, `3prime`, max_depth_site_insertion_pos, max_depth_site_depth)
-write_tsv(contig_output %>% select (contig) %>% distinct(), file="final_results/orf_IS_hits.txt", col_names = FALSE) 
-write_tsv (contig_output, file="final_results/orf_analysis.step1.tsv")
-contig_bed_output = contig_output %>% select (contig, max_depth_site_insertion_pos) %>%
-  mutate (start_pos = (max_depth_site_insertion_pos-1)) %>%
-  mutate (max_depth_site_insertion_pos = ifelse(start_pos<0, 1, max_depth_site_insertion_pos)) %>%
-  mutate (start_pos = ifelse(start_pos < 0, 0, start_pos)) %>%
-  relocate (contig,start_pos,max_depth_site_insertion_pos)
-write_tsv (contig_bed_output, file="final_results/orf_analysis.bed", col_names = FALSE)
+#contig_output = contig_output %>% relocate (sample, IS, contig, insertion_pos, `5prime`, `3prime`, max_depth_site_insertion_pos, max_depth_site_depth)
+#write_tsv(contig_output %>% select (contig) %>% distinct(), file="final_results/orf_IS_hits.txt", col_names = FALSE) 
+#write_tsv (contig_output, file="final_results/orf_analysis.step1.tsv")
+#contig_bed_output = contig_output %>% select (contig, max_depth_site_insertion_pos) %>%
+#  mutate (start_pos = (max_depth_site_insertion_pos-1)) %>%
+#  mutate (max_depth_site_insertion_pos = ifelse(start_pos<0, 1, max_depth_site_insertion_pos)) %>%
+#  mutate (start_pos = ifelse(start_pos < 0, 0, start_pos)) %>%
+#  relocate (contig,start_pos,max_depth_site_insertion_pos)
+#write_tsv (contig_bed_output, file="final_results/orf_analysis.bed", col_names = FALSE)
+# --- SAFETY: handle empty contig_output (no ORF insertions passing filters) ---
+if (!("sample" %in% colnames(contig_output))) {
+  # if nothing was appended, create an empty table with the expected columns
+  contig_output <- data.frame(
+    sample = character(),
+    IS = character(),
+    contig = character(),
+    insertion_pos = numeric(),
+    `5prime` = numeric(),
+    `3prime` = numeric(),
+    max_depth_site_insertion_pos = numeric(),
+    max_depth_site_depth = numeric(),
+    IS_type = character(),
+    itr = numeric(),
+    max_itr = numeric(),
+    stringsAsFactors = FALSE
+  )
+}
+
+# Keep stable column order (only if columns exist)
+contig_output <- contig_output %>%
+  relocate(sample, IS, contig, insertion_pos, `5prime`, `3prime`,
+           max_depth_site_insertion_pos, max_depth_site_depth, IS_type, itr, max_itr)
+
+# Always write outputs (even if empty)
+write_tsv(contig_output %>% select(contig) %>% distinct(),
+          file="final_results/orf_IS_hits.txt", col_names = FALSE)
+
+write_tsv(contig_output, file="final_results/orf_analysis.step1.tsv")
+
+# BED can be empty; write it anyway (0 rows, no header)
+contig_bed_output <- contig_output %>% select(contig, max_depth_site_insertion_pos) %>%
+  mutate(start_pos = (max_depth_site_insertion_pos-1)) %>%
+  mutate(max_depth_site_insertion_pos = ifelse(start_pos<0, 1, max_depth_site_insertion_pos)) %>%
+  mutate(start_pos = ifelse(start_pos < 0, 0, start_pos)) %>%
+  relocate(contig, start_pos, max_depth_site_insertion_pos)
+
+write_tsv(contig_bed_output, file="final_results/orf_analysis.bed", col_names = FALSE)
+

@@ -55,23 +55,65 @@ IS_fam_df  = read_tsv(paste (args[3],"/IS_fam_annot.txt", sep="")) %>%
 analysis_annot = analysis_annot %>% 
   left_join(IS_fam_df)
 
+#if (args[4] == "contig"){
+#  inOrf  = read_tsv ("final_results/IS_hits_in_orfs.txt", 
+#                     col_names = c("contig","start_pos","max_depth_site_insertion_pos", "ORF"),
+#                     show_col_types = FALSE) %>%
+#    select (contig,max_depth_site_insertion_pos,ORF) %>%
+#    mutate (intragenic = "Yes") %>% distinct(contig, max_depth_site_insertion_pos, .keep_all = TRUE)
+#  analysis_annot = analysis_annot %>%
+#    left_join(inOrf, by=c("contig" = "contig", "max_depth_site_insertion_pos" = "max_depth_site_insertion_pos")) %>% 
+#    mutate (intragenic =ifelse(is.na(intragenic), "No", intragenic)) %>%
+#    distinct() %>%
+#    rename ("Insertion_Position" = max_depth_site_insertion_pos) %>%
+#    rename ("IS_Depth_at_Max_Depth_Site" = max_depth_site_depth) 
+#  write_tsv (analysis_annot, "final_results/pseudoR_output.contig.tsv")
+#} else if (args[4] == "ORF"){
+#  analysis_annot = analysis_annot %>%
+#   mutate ("ORF"=contig) %>%
+#    rename ("Insertion_Position" = max_depth_site_insertion_pos) %>%
+#    rename ("IS_Depth_at_Max_Depth_Site" = max_depth_site_depth)
+#  write_tsv (analysis_annot, "final_results/pseudoR_output.ORF.tsv")
+#}
 if (args[4] == "contig"){
-  inOrf  = read_tsv ("final_results/IS_hits_in_orfs.txt", 
-                     col_names = c("contig","start_pos","max_depth_site_insertion_pos", "ORF"),
-                     show_col_types = FALSE) %>%
-    select (contig,max_depth_site_insertion_pos,ORF) %>%
-    mutate (intragenic = "Yes") %>% distinct(contig, max_depth_site_insertion_pos, .keep_all = TRUE)
+
+  inOrf_path <- "final_results/IS_hits_in_orfs.txt"
+
+  if (!file.exists(inOrf_path) || file.info(inOrf_path)$size == 0) {
+    inOrf <- tibble::tibble(
+      contig = character(),
+      max_depth_site_insertion_pos = numeric(),
+      ORF = character(),
+      intragenic = character()
+    )
+  } else {
+    inOrf <- readr::read_tsv(
+      inOrf_path,
+      col_names = c("contig","start_pos","max_depth_site_insertion_pos","ORF"),
+      col_types = readr::cols(
+        contig = readr::col_character(),
+        start_pos = readr::col_double(),
+        max_depth_site_insertion_pos = readr::col_double(),
+        ORF = readr::col_character()
+      ),
+      show_col_types = FALSE
+    ) %>%
+      select(contig, max_depth_site_insertion_pos, ORF) %>%
+      mutate(intragenic = "Yes") %>%
+      distinct(contig, max_depth_site_insertion_pos, .keep_all = TRUE)
+  }
+
+  # make sure join keys have the same type
+  analysis_annot <- analysis_annot %>%
+    mutate(max_depth_site_insertion_pos = as.double(max_depth_site_insertion_pos))
+
   analysis_annot = analysis_annot %>%
-    left_join(inOrf, by=c("contig" = "contig", "max_depth_site_insertion_pos" = "max_depth_site_insertion_pos")) %>% 
-    mutate (intragenic =ifelse(is.na(intragenic), "No", intragenic)) %>%
+    left_join(inOrf, by=c("contig" = "contig", "max_depth_site_insertion_pos" = "max_depth_site_insertion_pos")) %>%
+    mutate(intragenic = ifelse(is.na(intragenic), "No", intragenic)) %>%
     distinct() %>%
-    rename ("Insertion_Position" = max_depth_site_insertion_pos) %>%
-    rename ("IS_Depth_at_Max_Depth_Site" = max_depth_site_depth) 
-  write_tsv (analysis_annot, "final_results/pseudoR_output.contig.tsv")
-} else if (args[4] == "ORF"){
-  analysis_annot = analysis_annot %>%
-    mutate ("ORF"=contig) %>%
-    rename ("Insertion_Position" = max_depth_site_insertion_pos) %>%
-    rename ("IS_Depth_at_Max_Depth_Site" = max_depth_site_depth)
-  write_tsv (analysis_annot, "final_results/pseudoR_output.ORF.tsv")
+    rename("Insertion_Position" = max_depth_site_insertion_pos) %>%
+    rename("IS_Depth_at_Max_Depth_Site" = max_depth_site_depth)
+
+  write_tsv(analysis_annot, "final_results/pseudoR_output.contig.tsv")
 }
+

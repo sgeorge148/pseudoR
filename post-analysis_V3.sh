@@ -52,7 +52,12 @@ for i in $(cat ${sraList})
 do
 
 samtools index -@ 3 mapping_files/${i}.orf.reads_mapped.bam mapping_files/${i}.orf.reads_mapped.bam.bai
-mosdepth -t 3 -x -n --by final_results/orf_analysis.bed temp/temp mapping_files/${i}.orf.reads_mapped.bam
+#mosdepth -t 3 -x -n --by final_results/orf_analysis.bed temp/temp mapping_files/${i}.orf.reads_mapped.bam
+if [[ -s final_results/orf_analysis.bed ]]; then
+  mosdepth -t 3 -x -n --by final_results/orf_analysis.bed temp/temp mapping_files/${i}.orf.reads_mapped.bam
+else
+  echo "WARN: final_results/orf_analysis.bed is missing/empty; skipping ORF mosdepth for ${i}" >&2
+fi
 gunzip -c temp/temp.regions.bed.gz > mapping_files/${i}.orf.reads_mapped.depth
 
 
