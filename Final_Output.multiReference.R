@@ -12,8 +12,77 @@ args = commandArgs(trailingOnly=TRUE)
 #filter read data such that the end (3' or 5') of with the lowest level of read mapping is 1/10th or greater than the higher end of read mapping
 sampleList = read_tsv(args[1], col_names = "Sample",
                       show_col_types = FALSE)
-analysis = read_tsv(args[2], 
-                    show_col_types = FALSE) %>%
+
+
+# -----------------------------
+# READ step1 input safely
+# -----------------------------
+step1_path <- args[2]
+
+if (!file.exists(step1_path) || file.info(step1_path)$size == 0) {
+
+  message("INFO: ", step1_path, " is missing or empty. Writing empty output.")
+
+  if (args[4] == "contig") {
+    out <- tibble(
+      sample = character(),
+      IS = character(),
+      contig = character(),
+      Insertion_Position = double(),
+      IS_Depth_at_Max_Depth_Site = double(),
+      `5prime_IS_depth` = double(),
+      `3prime_IS_depth` = double(),
+      total_IS_depth = double(),
+      non_IS_depth = double(),
+      depth_percentage = double(),
+      IS_fam = character(),
+      ORF = character(),
+      intragenic = character()
+    )
+    write_tsv(out, "final_results/pseudoR_output.contig.tsv")
+
+  } else if (args[4] == "ORF") {
+    out <- tibble(
+      sample = character(),
+      IS = character(),
+      contig = character(),
+      Insertion_Position = double(),
+      IS_Depth_at_Max_Depth_Site = double(),
+      `5prime_IS_depth` = double(),
+      `3prime_IS_depth` = double(),
+      total_IS_depth = double(),
+      non_IS_depth = double(),
+      depth_percentage = double(),
+      IS_fam = character(),
+      ORF = character()
+    )
+    write_tsv(out, "final_results/pseudoR_output.ORF.tsv")
+  }
+
+  quit(status = 0)
+}
+
+# -----------------------------
+# Normal path: read step1 file
+# -----------------------------
+analysis <- read_tsv(
+  step1_path,
+  show_col_types = FALSE,
+  col_types = cols(
+    sample = col_character(),
+    IS = col_character(),
+    contig = col_character(),
+    insertion_pos = col_double(),
+    `5prime` = col_double(),
+    `3prime` = col_double(),
+    max_depth_site_insertion_pos = col_double(),
+    max_depth_site_depth = col_double(),
+    .default = col_guess()
+  )
+)
+
+#continue original calculation
+analysis = analysis %>%
   rowwise() %>%
   mutate (total_IS_depth = sum(`5prime`+`3prime`)) %>%
   filter (total_IS_depth >= 4) %>%
@@ -116,4 +185,3 @@ if (args[4] == "contig"){
 
   write_tsv(analysis_annot, "final_results/pseudoR_output.contig.tsv")
 }
-
