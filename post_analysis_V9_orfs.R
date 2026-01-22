@@ -116,29 +116,42 @@ for (i in seq (nrow(sampleList))) {
 #  mutate (start_pos = ifelse(start_pos < 0, 0, start_pos)) %>%
 #  relocate (contig,start_pos,max_depth_site_insertion_pos)
 #write_tsv (contig_bed_output, file="final_results/orf_analysis.bed", col_names = FALSE)
-# --- SAFETY: handle empty contig_output (no ORF insertions passing filters) ---
-if (!("sample" %in% colnames(contig_output))) {
-  # if nothing was appended, create an empty table with the expected columns
-  contig_output <- data.frame(
-    sample = character(),
-    IS = character(),
-    contig = character(),
-    insertion_pos = numeric(),
-    `5prime` = numeric(),
-    `3prime` = numeric(),
-    max_depth_site_insertion_pos = numeric(),
-    max_depth_site_depth = numeric(),
-    IS_type = character(),
-    itr = numeric(),
-    max_itr = numeric(),
-    stringsAsFactors = FALSE
-  )
+# --- SAFETY: ensure contig_output has the expected columns (even if partial/empty) ---
+
+expected_types <- list(
+  sample = character(),
+  IS = character(),
+  contig = character(),
+  insertion_pos = numeric(),
+  `5prime` = numeric(),
+  `3prime` = numeric(),
+  max_depth_site_insertion_pos = numeric(),
+  max_depth_site_depth = numeric(),
+  IS_type = character(),
+  itr = numeric(),
+  max_itr = numeric()
+)
+
+# If contig_output is truly empty or never got initialized properly
+if (!is.data.frame(contig_output) || ncol(contig_output) == 0) {
+  contig_output <- data.frame(stringsAsFactors = FALSE)
 }
 
-# Keep stable column order (only if columns exist)
+# Add any missing expected columns with the right type
+for (nm in names(expected_types)) {
+  if (!(nm %in% colnames(contig_output))) {
+    contig_output[[nm]] <- expected_types[[nm]]
+  }
+}
+
+# For safety: if 5prime/3prime exist but are NA (common when only one end was present)
+# set NA to 0 (does not create new events; just makes depth arithmetic stable)
+contig_output$`5prime`[is.na(contig_output$`5prime`)] <- 0
+contig_output$`3prime`[is.na(contig_output$`3prime`)] <- 0
+
+# Stable column order
 contig_output <- contig_output %>%
-  relocate(sample, IS, contig, insertion_pos, `5prime`, `3prime`,
-           max_depth_site_insertion_pos, max_depth_site_depth, IS_type, itr, max_itr)
+  relocate(all_of(names(expected_types)))
 
 # Always write outputs (even if empty)
 write_tsv(contig_output %>% select(contig) %>% distinct(),
